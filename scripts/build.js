@@ -39,9 +39,11 @@ const WARN_AFTER_CHUNK_GZIP_SIZE = 1024 * 1024;
 const isInteractive = process.stdout.isTTY;
 
 // Warn and crash if required files are missing
-if (!checkRequiredFiles([paths.appHtml, paths.appIndexJs])) {
-  process.exit(1);
-}
+paths.entriesPath.forEach(({path, name}) => {
+  if (!checkRequiredFiles([paths.appHtml, path])) {
+    process.exit(1);
+  }
+})
 
 // Generate configuration
 const config = configFactory('production');

@@ -1,68 +1,151 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# 基于 create-react-app 脚手架搭建
 
-## Available Scripts
+1. npm run eject
+使用自带命令展开脚手架
 
-In the project directory, you can run:
+2. 修改/config/以下代码
+```
+// paths.js
++ const globby = require('url');
 
-### `yarn start`
++ const entriesPath = globby.sync([resolveApp('src') + '/pages/**/index.js']).map(filePath => {
+  let tmp = filePath.split('/');
+  let name = tmp[tmp.length - 2];
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+  // 处理多层文件夹嵌套的页面
+  let pFolderIdx = tmp.indexOf('pages')
+  tmp = tmp.slice(pFolderIdx + 1, tmp.length - 1)
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+  return {path: filePath, name: tmp.join('/')}
+});
 
-### `yarn test`
+module.exports = {
+  - appIndexJs: resolveModule(resolveApp, 'src/index')
+  + entriesPath
+}
+```
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+// /config/webpackDevServer.config.js
++ const files = paths.entriesPath;
++ const rewrites = files.map(({name, path}) => {
+  return {
+    from: new RegExp(`^\/${name}`),
+    to: `/${name}.html`
+  };
+});
 
-### `yarn build`
+historyApiFallback: {
+  // Paths with dots should still use the history fallback.
+  // See https://github.com/facebook/create-react-app/issues/387.
+    disableDotRule: true,
++   rewrites
+},
+```
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+// /config/webpack.config.js
+module.exports = function (webpackEnv) {
+  // 获取 entry
++ function getEntries(){
+    const entries = {};
+    const files = paths.entriesPath;
+    files.forEach(({name, path}) => {
+      entries[name] = [
+        isEnvDevelopment && require.resolve('react-dev-utils/webpackHotDevClient'),
+        path,
+      ].filter(Boolean);
+    });
+    return entries;
+  }
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
++  const entries = getEntries()
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
++  const htmlPlugin = Object.keys(entries).map(name => {
+    return new HtmlWebpackPlugin(Object.assign({}, {
+        inject: true,
+        template: paths.appHtml,
+        chunks: [name, 0], // 只会插入名字中带 "0" 或者 带 name 的js 问题
+        filename: `${name}.html`,
+        title: `${name} html`,
 
-### `yarn eject`
+      }, isEnvProduction
+        ? {
+          minify: {
+            removeComments: true,
+            collapseWhitespace: true,
+            removeRedundantAttributes: true,
+            useShortDoctype: true,
+            removeEmptyAttributes: true,
+            removeStyleLinkTypeAttributes: true,
+            keepClosingSlash: true,
+            minifyJS: true,
+            minifyCSS: true,
+            minifyURLs: true
+          }
+        }
+        : undefined));
+  });
+}
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
-
-### Analyzing the Bundle Size
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
-
-### Making a Progressive Web App
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
-
-### Advanced Configuration
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
-
-### Deployment
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
-
-### `yarn build` fails to minify
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+return {
+  ...
+-  entry: [
+    isEnvDevelopment &&
+        require.resolve('react-dev-utils/webpackHotDevClient'),
+    paths.appIndexJs,
+  ].filter(Boolean),
++  entry:entries,
+  output: {
+    ...
+-   filename: isEnvProduction
+        ? 'static/js/[name].[contenthash:8].js'
+        : isEnvDevelopment && 'static/js/bundle.js',
++   filename: isEnvProduction
+        ? 'static/js/[name].[contenthash:8].js'
+        : isEnvDevelopment && 'static/js/[name].bundle.js',
+    ...
+  }
+  ...
+  plugins: [
+-   new HtmlWebpackPlugin(
+        Object.assign(
+          {},
+          {
+            inject: true,
+            template: paths.appHtml,
+          },
+          isEnvProduction
+            ? {
+                minify: {
+                  removeComments: true,
+                  collapseWhitespace: true,
+                  removeRedundantAttributes: true,
+                  useShortDoctype: true,
+                  removeEmptyAttributes: true,
+                  removeStyleLinkTypeAttributes: true,
+                  keepClosingSlash: true,
+                  minifyJS: true,
+                  minifyCSS: true,
+                  minifyURLs: true,
+                },
+              }
+            : undefined
+        )
+      ),
++ ...htmlPlugin,
+  ]
+}
+```
+```
+// /scripts/start.js
+// /scripts/build.js
+- if (!checkRequiredFiles([paths.appHtml,  paths.appIndexJs])) {
+    process.exit(1);
+  }
++ paths.entriesPath.forEach(({path, name}) => {
+    if (!checkRequiredFiles([paths.appHtml, path])) {
+      process.exit(1);
+    }
+  })
+```

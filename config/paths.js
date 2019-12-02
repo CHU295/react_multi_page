@@ -3,6 +3,7 @@
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
+const globby = require('globby');
 
 // Make sure any symlinks in the project folder are resolved:
 // https://github.com/facebook/create-react-app/issues/637
@@ -10,6 +11,17 @@ const appDirectory = fs.realpathSync(process.cwd());
 const resolveApp = relativePath => path.resolve(appDirectory, relativePath);
 
 const envPublicUrl = process.env.PUBLIC_URL;
+
+const entriesPath = globby.sync([resolveApp('src') + '/pages/**/index.js']).map(filePath => {
+  let tmp = filePath.split('/');
+  let name = tmp[tmp.length - 2];
+
+  // 处理多层文件夹嵌套的页面
+  let pFolderIdx = tmp.indexOf('pages')
+  tmp = tmp.slice(pFolderIdx + 1, tmp.length - 1)
+
+  return {path: filePath, name: tmp.join('/')}
+});
 
 function ensureSlash(inputPath, needsSlash) {
   const hasSlash = inputPath.endsWith('/');
@@ -72,7 +84,6 @@ module.exports = {
   appBuild: resolveApp('build'),
   appPublic: resolveApp('public'),
   appHtml: resolveApp('public/index.html'),
-  appIndexJs: resolveModule(resolveApp, 'src/index'),
   appPackageJson: resolveApp('package.json'),
   appSrc: resolveApp('src'),
   appTsConfig: resolveApp('tsconfig.json'),
@@ -83,6 +94,7 @@ module.exports = {
   appNodeModules: resolveApp('node_modules'),
   publicUrl: getPublicUrl(resolveApp('package.json')),
   servedPath: getServedPath(resolveApp('package.json')),
+  entriesPath
 };
 
 
