@@ -6,7 +6,7 @@
 2. 修改/config/以下代码
 ```
 // paths.js
-+ const globby = require('url');
++ const globby = require('globby');
 
 + const entriesPath = globby.sync([resolveApp('src') + '/pages/**/index.js']).map(filePath => {
   let tmp = filePath.split('/');
