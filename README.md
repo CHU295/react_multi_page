@@ -149,3 +149,14 @@ return {
     }
   })
 ```
+
+3. 处理 /public/index.html
+yarn add handlebars-loader --save
+
+```
+// webpack添加rule
+{
+  test: /.hbs$/,
+  loader: require.resolve('handlebars-loader')
+},
+```
